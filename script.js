@@ -407,6 +407,38 @@ class SalesTracker {
         if (notificationBtn) {
             notificationBtn.addEventListener('click', () => this.switchTab('messages'));
         }
+
+        // Hamburger menu toggle for sidebar
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebarToggle && sidebar) {
+            // Ensure hidden by default
+            sidebarToggle.style.display = 'none';
+            // Show on small screens
+            const handleResize = () => {
+                if (window.innerWidth <= 768) {
+                    sidebarToggle.style.display = 'flex';
+                    sidebar.classList.remove('open');
+                } else {
+                    sidebarToggle.style.display = 'none';
+                    sidebar.classList.remove('open');
+                }
+            };
+            window.addEventListener('resize', handleResize);
+            handleResize();
+            sidebarToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sidebar.classList.toggle('open');
+            });
+            // Hide sidebar when clicking outside on small screens
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+                    if (!sidebar.contains(e.target) && e.target !== sidebarToggle) {
+                        sidebar.classList.remove('open');
+                    }
+                }
+            });
+        }
     }
 
     // --- UI & TAB MANAGEMENT --- //
