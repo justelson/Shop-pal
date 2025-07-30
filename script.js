@@ -1,6 +1,66 @@
 // ShopTracker Pro - Sales Management System
 class SalesTracker {
     constructor() {
+        // Shop types and their default categories
+        this.shopTypes = {
+            'general_retail': {
+                name: 'General Retail Shop',
+                categories: [
+                    'Food & Snacks', 'Cleaning Supplies', 'Toiletries', 'Beverages',
+                    'Stationery', 'Small Electronics', 'Household Tools', 'Kitchenware',
+                    'Clothing Accessories', 'Personal Care Items'
+                ]
+            },
+            'electronics': {
+                name: 'Electronics Shop',
+                categories: [
+                    'Smartphones', 'Laptops & Computers', 'Earphones & Headphones',
+                    'Smartwatches & Wearables', 'Cables & Chargers', 'Flash Drives & Memory Cards',
+                    'TVs & Monitors', 'Home Appliances', 'Power Banks & Batteries', 'Gaming Accessories'
+                ]
+            },
+            'fashion': {
+                name: 'Fashion Boutique',
+                categories: [
+                    'Men\'s Clothing', 'Women\'s Clothing', 'Children\'s Clothing',
+                    'Shoes & Sandals', 'Handbags & Wallets', 'Jewelry',
+                    'Watches', 'Scarves & Hats', 'Perfumes & Body Sprays', 'Sunglasses'
+                ]
+            },
+            'pharmacy': {
+                name: 'Pharmacy / Health Store',
+                categories: [
+                    'Prescription Medicines', 'Over-the-counter Drugs', 'First Aid Supplies',
+                    'Vitamins & Supplements', 'Baby Care Products', 'Personal Hygiene',
+                    'Skin Care', 'Medical Equipment', 'Herbal Remedies', 'Face Masks & Sanitizers'
+                ]
+            },
+            'hardware': {
+                name: 'Hardware Shop',
+                categories: [
+                    'Hand Tools', 'Power Tools', 'Paints & Brushes', 'Electrical Supplies',
+                    'Plumbing Items', 'Nails, Screws & Fasteners', 'Construction Materials',
+                    'Safety Gear', 'Wood & Boards', 'Locks & Door Handles'
+                ]
+            },
+            'bookstore': {
+                name: 'Bookstore / Stationery Shop',
+                categories: [
+                    'Textbooks', 'Exercise Books', 'Pens & Pencils', 'Office Files & Folders',
+                    'Calculators', 'Art Supplies', 'Envelopes & Paper', 'Diaries & Planners',
+                    'Educational Toys & Games', 'Glue, Tapes, and Scissors'
+                ]
+            },
+            'grocery': {
+                name: 'Grocery / Mini Supermarket',
+                categories: [
+                    'Fresh Fruits & Vegetables', 'Meat & Fish', 'Bread & Bakery Items',
+                    'Rice, Flour, and Grains', 'Cooking Oils & Spices', 'Packaged Foods',
+                    'Milk & Dairy Products', 'Frozen Foods', 'Beverages', 'Cleaning Products'
+                ]
+            }
+        };
+
         // Currency symbols mapping
         this.currencySymbols = {
             'USD': '$', 'EUR': '€', 'GBP': '$', 'JPY': '¥',
@@ -88,6 +148,10 @@ class SalesTracker {
         this.initializeAvatar();
         this.initializeCustomCategories();
         this.initializeDashboardCustomization();
+        
+        // Test avatar crop modal elements
+        this.testAvatarCropModal();
+        
         this.switchTab('dashboard');
     }
 
@@ -101,11 +165,34 @@ class SalesTracker {
         document.getElementById('profileSetupModal').classList.add('active');
         document.getElementById('profileSetupForm').addEventListener('submit', this.handleProfileSetup.bind(this));
 
+        // Add shop type dropdown options with enhanced descriptions
+        const shopTypeSelect = document.getElementById('shopType');
+        if (shopTypeSelect) {
+            shopTypeSelect.innerHTML = '<option value="">Select Shop Type</option>';
+            Object.entries(this.shopTypes).forEach(([value, data]) => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = data.name;
+                const option = document.createElement('option');
+                option.value = value;
+                option.innerHTML = `${data.name} - ${data.description || 'General retail store'}`;
+                option.dataset.categories = JSON.stringify(data.categories || []);
+                optgroup.appendChild(option);
+                shopTypeSelect.appendChild(optgroup);
+            });
+
+            // Add change event listener
+            shopTypeSelect.addEventListener('change', (e) => {
+                const selectedType = e.target.value;
+                // Update both the product category select and custom categories list
+                this.updateCategoriesForShopType(selectedType);
+            });
+        }
+
         // Setup avatar click handler for profile setup
         const setupAvatar = document.getElementById('setupAvatarCircle');
         if (setupAvatar) {
             setupAvatar.addEventListener('click', () => {
-                document.getElementById('profilePictureSetup').click();
+                this.openAvatarCropForContext('setup');
             });
         }
         
@@ -130,7 +217,34 @@ class SalesTracker {
         // Setup profile picture change handler
         const profilePictureInput = document.getElementById('profilePictureSetup');
         if (profilePictureInput) {
-            profilePictureInput.addEventListener('change', (e) => this.handleSetupProfilePicture(e));
+            profilePictureInput.addEventListener('change', (e) => this.handleAvatarUploadUnified(e, 'setup'));
+        }
+
+        // --- Ensure avatar crop modal controls are initialized for first-time sign-in ---
+        // These listeners are usually set in setupEventListeners, but not during first sign-in
+        const cropScale = document.getElementById('cropScale');
+        if (cropScale) {
+            cropScale.addEventListener('input', (e) => this.updateAvatarCrop());
+        }
+        const cropX = document.getElementById('cropX');
+        if (cropX) {
+            cropX.addEventListener('input', (e) => this.updateAvatarCrop());
+        }
+        const cropY = document.getElementById('cropY');
+        if (cropY) {
+            cropY.addEventListener('input', (e) => this.updateAvatarCrop());
+        }
+        const closeAvatarCrop = document.getElementById('closeAvatarCrop');
+        if (closeAvatarCrop) {
+            closeAvatarCrop.addEventListener('click', () => this.closeAvatarCropAndRestore());
+        }
+        const cancelAvatarCrop = document.getElementById('cancelAvatarCrop');
+        if (cancelAvatarCrop) {
+            cancelAvatarCrop.addEventListener('click', () => this.closeAvatarCropAndRestore());
+        }
+        const saveAvatarCrop = document.getElementById('saveAvatarCrop');
+        if (saveAvatarCrop) {
+            saveAvatarCrop.addEventListener('click', () => this.saveAvatarCrop());
         }
     }
 
@@ -139,30 +253,64 @@ class SalesTracker {
         const shopName = document.getElementById('shopName').value.trim();
         const ownerName = document.getElementById('ownerName').value.trim();
         const currency = document.getElementById('currency').value;
-        if (!shopName || !ownerName || !currency) {
+        const shopType = document.getElementById('shopType').value;
+
+        if (!shopName || !ownerName || !currency || !shopType) {
             alert('Please fill in all required fields.');
             return;
         }
+
+        // Check for existing profile with same shop name and owner
+        let profiles = this.getAllProfiles();
+        const exists = profiles.some(p => 
+            p.shopName.toLowerCase() === shopName.toLowerCase() && 
+            p.ownerName.toLowerCase() === ownerName.toLowerCase()
+        );
+
+        if (exists) {
+            alert('A profile with this shop name and owner name already exists. Please use different names.');
+            return;
+        }
+
         const newProfile = {
             id: Date.now(),
             shopName,
             ownerName,
             currency,
+            shopType,
             established: new Date().getFullYear(),
             createdAt: new Date().toISOString(),
-            profilePicture: this.setupProfilePicture || null // Include the profile picture if available
+            profilePicture: this.setupProfilePicture || null
         };
-        // Add to profiles array only if not duplicate
-        let profiles = this.getAllProfiles();
-        const exists = profiles.some(p => p.shopName === newProfile.shopName && p.ownerName === newProfile.ownerName && p.currency === newProfile.currency);
-        if (!exists) {
-            profiles.push(newProfile);
-            localStorage.setItem('shopTrackerProfiles', JSON.stringify(profiles));
-        }
+
+        // Add to profiles array
+        profiles.push(newProfile);
+        localStorage.setItem('shopTrackerProfiles', JSON.stringify(profiles));
+
         // Set as current profile
         localStorage.setItem('shopTrackerProfile', JSON.stringify(newProfile));
-        // Create default data for this profile with default categories and dashboard settings
-        localStorage.setItem(`shopTrackerData_${newProfile.id}`, JSON.stringify(this.createDefaultDatabase()));
+
+        // Get categories based on selected shop type and create a fresh workspace
+        const shopCategories = this.shopTypes[shopType]?.categories || [];
+        
+        // Create fresh default data with the shop-specific categories
+        const defaultData = {
+            products: [],
+            sales: [],
+            customCategories: [...shopCategories],
+            dashboardConfig: {
+                showTodaySales: true,
+                showWeekSales: true,
+                showTotalRevenue: true,
+                showTotalProfit: true,
+                showTotalProducts: true,
+                showLowStock: true
+            },
+            createdAt: new Date().toISOString(),
+            lastModified: new Date().toISOString()
+        };
+        
+        localStorage.setItem(`shopTrackerData_${newProfile.id}`, JSON.stringify(defaultData));
         this.shopProfile = newProfile;
         this.profiles = profiles;
         // Remove the event listener to prevent double submissions
@@ -194,12 +342,16 @@ class SalesTracker {
     }
 
     createDefaultDatabase() {
+        // Get categories based on shop type, or use a default set
+        const shopType = this.shopProfile ? this.shopProfile.shopType : 'general_retail';
+        const categories = this.shopTypes[shopType]?.categories || [
+            'Miscellaneous' // Fallback category if something goes wrong
+        ];
+        
         return {
             products: [],
             sales: [],
-            customCategories: [
-                'Electronics', 'Clothing', 'Food & Beverages', 'Books', 'Home & Garden', 'Sports', 'Miscellaneous'
-            ],
+            customCategories: categories,
             dashboardConfig: {
                 showTodaySales: true,
                 showWeekSales: true,
@@ -212,17 +364,24 @@ class SalesTracker {
     }
 
     saveUserDatabase() {
-        const dataToSave = {
-            products: this.products,
-            sales: this.sales,
-            customCategories: this.userDatabase.customCategories || [],
-            dashboardConfig: this.userDatabase.dashboardConfig || {}
-        };
-        // Save to profile-specific key if we have a profile
-        if (this.shopProfile && this.shopProfile.id) {
-            const profileDataKey = `shopTrackerData_${this.shopProfile.id}`;
-            localStorage.setItem(profileDataKey, JSON.stringify(dataToSave));
+        // Only save if we have a valid profile
+        if (!this.shopProfile || !this.shopProfile.id) {
+            console.warn('Attempted to save user database without an active profile');
+            return;
         }
+
+        const dataToSave = {
+            products: this.products || [],
+            sales: this.sales || [],
+            customCategories: this.userDatabase.customCategories || [],
+            dashboardConfig: this.userDatabase.dashboardConfig || {},
+            lastModified: new Date().toISOString()
+        };
+
+        // Save to profile-specific storage key
+        const profileDataKey = `shopTrackerData_${this.shopProfile.id}`;
+        localStorage.setItem(profileDataKey, JSON.stringify(dataToSave));
+        
         this.userDatabase = dataToSave;
         this.updateNotifications();
     }
@@ -315,14 +474,14 @@ class SalesTracker {
         const newProfileAvatar = document.getElementById('newProfileAvatarCircle');
         if (newProfileAvatar) {
             newProfileAvatar.addEventListener('click', () => {
-                document.getElementById('newProfilePicture').click();
+                this.openAvatarCropForContext('newProfile');
             });
         }
 
         // Setup profile picture change handler for new profile
         const newProfilePictureInput = document.getElementById('newProfilePicture');
         if (newProfilePictureInput) {
-            newProfilePictureInput.addEventListener('change', (e) => this.handleNewProfilePicture(e));
+            newProfilePictureInput.addEventListener('change', (e) => this.handleAvatarUploadUnified(e, 'newProfile'));
         }
 
         document.getElementById('newProfileForm').addEventListener('submit', (e) => {
@@ -347,8 +506,16 @@ class SalesTracker {
 
         // Settings Management
         document.getElementById('profileSettingsForm').addEventListener('submit', (e) => this.handleProfileSettingsSubmit(e));
-        document.getElementById('clearAllDataBtn').addEventListener('click', () => this.clearAllData());
+        document.getElementById('clearAllDataBtn').addEventListener('click', () => this.openClearDataModal());
         document.getElementById('resetProfileBtn').addEventListener('click', () => this.resetProfile());
+        const deleteAllProfilesBtn = document.getElementById('deleteAllProfilesBtn');
+        if (deleteAllProfilesBtn) {
+            deleteAllProfilesBtn.addEventListener('click', () => this.deleteAllProfiles());
+        }
+        // Clear Data Modal events
+        document.getElementById('closeClearDataModal').addEventListener('click', () => this.closeClearDataModal());
+        document.getElementById('cancelClearDataBtn').addEventListener('click', () => this.closeClearDataModal());
+        document.getElementById('clearDataForm').addEventListener('submit', (e) => this.handleClearDataSubmit(e));
 
         // Event Delegation for action buttons
         document.getElementById('productsList').addEventListener('click', (e) => this.handleProductActions(e));
@@ -361,10 +528,10 @@ class SalesTracker {
         }
 
         // Avatar System Event Listeners
-        document.getElementById('userAvatarContainer').addEventListener('click', () => this.openAvatarCrop());
-        document.getElementById('settingsProfilePicture').addEventListener('change', (e) => this.handleAvatarUpload(e));
-        document.getElementById('closeAvatarCrop').addEventListener('click', () => this.closeAvatarCrop());
-        document.getElementById('cancelAvatarCrop').addEventListener('click', () => this.closeAvatarCrop());
+        document.getElementById('userAvatarContainer').addEventListener('click', () => this.openAvatarCrop('settings'));
+        document.getElementById('settingsProfilePicture').addEventListener('change', (e) => this.handleAvatarUploadUnified(e, 'settings'));
+        document.getElementById('closeAvatarCrop').addEventListener('click', () => this.closeAvatarCropAndRestore());
+        document.getElementById('cancelAvatarCrop').addEventListener('click', () => this.closeAvatarCropAndRestore());
         document.getElementById('saveAvatarCrop').addEventListener('click', () => this.saveAvatarCrop());
 
         // Avatar crop controls
@@ -652,7 +819,55 @@ class SalesTracker {
         });
     }
 
-    openProductModal() { document.getElementById('productModal').classList.add('active'); }
+    updateCategoriesForShopType(shopType) {
+        if (!shopType) return;
+
+        const categories = this.shopTypes[shopType]?.categories || [];
+
+        // Update product category select if it exists
+        const categorySelect = document.getElementById('productCategory');
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">Select a category</option>';
+            categories.forEach(category => {
+                categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
+            });
+        }
+
+        // Update custom categories list if it exists
+        const categoriesList = document.getElementById('categoriesList');
+        if (categoriesList) {
+            categoriesList.innerHTML = '';
+            categories.forEach(category => {
+                const categoryItem = document.createElement('div');
+                categoryItem.className = 'category-item';
+                categoryItem.innerHTML = `
+                    <span class="category-name">${category}</span>
+                    <div class="category-actions">
+                        <button class="btn-edit" data-category="${category}">Edit</button>
+                        <button class="btn-delete" data-category="${category}">Delete</button>
+                    </div>
+                `;
+                categoriesList.appendChild(categoryItem);
+            });
+        }
+
+        // Store the updated categories in the database
+        if (this.userDatabase) {
+            this.userDatabase.customCategories = [...categories];
+            this.saveUserDatabase();
+        }
+    }
+
+    updateCategorySelect() {
+        if (!this.shopProfile || !this.shopProfile.shopType) return;
+        this.updateCategoriesForShopType(this.shopProfile.shopType);
+    }
+
+    openProductModal() { 
+        document.getElementById('productModal').classList.add('active');
+        this.updateCategorySelect();
+    }
+    
     closeProductModal() {
         document.getElementById('productModal').classList.remove('active');
         document.getElementById('productForm').reset();
@@ -1399,17 +1614,34 @@ class SalesTracker {
             alert('Please fill in all required fields.');
             return;
         }
+
+        // Check for duplicate profile names to prevent confusion
+        const existingProfile = this.profiles.find(p => 
+            p.shopName.toLowerCase() === profileData.shopName.toLowerCase() &&
+            p.ownerName.toLowerCase() === profileData.ownerName.toLowerCase()
+        );
+
+        if (existingProfile) {
+            alert('A profile with this shop name and owner name already exists. Please use different names.');
+            return;
+        }
+
         const newProfile = {
             id: Date.now(),
             ...profileData,
             established: new Date().getFullYear(),
             createdAt: new Date().toISOString()
         };
+
+        // Save the new profile to the profiles list
         this.profiles.push(newProfile);
         this.saveAllProfiles();
-        // Create default data for this profile with default categories and dashboard settings
-        localStorage.setItem(`shopTrackerData_${newProfile.id}`, JSON.stringify(this.createDefaultDatabase()));
-        // Switch to new profile
+
+        // Create a fresh database for the new profile with default settings
+        const defaultData = this.createDefaultDatabase();
+        localStorage.setItem(`shopTrackerData_${newProfile.id}`, JSON.stringify(defaultData));
+
+        // Switch to the new profile and initialize its workspace
         this.switchToProfile(newProfile.id);
         return newProfile;
     }
@@ -1417,28 +1649,37 @@ class SalesTracker {
     switchToProfile(profileId) {
         const profile = this.profiles.find(p => p.id === profileId);
         if (!profile) return;
+
         // Show loading overlay
         this.showLoadingOverlay('Switching profile...');
+        
         setTimeout(() => {
             try {
-                // Set current profile before saving user data
+                // Save current profile's data before switching
+                if (this.shopProfile && this.shopProfile.id) {
+                    this.saveUserDatabase();
+                }
+
+                // Set new profile as current
                 this.shopProfile = profile;
                 localStorage.setItem('shopTrackerProfile', JSON.stringify(profile));
-                // Save current profile data before switching
-                this.saveUserDatabase();
+
                 // Check for required info
                 if (!profile.shopName || !profile.ownerName || !profile.currency) {
                     this.hideLoadingOverlay();
                     this.showProfileSetup();
                     return;
                 }
-                // Load new profile's data
+
+                // Load new profile's data with a fresh workspace
                 const profileDataKey = `shopTrackerData_${profileId}`;
                 let profileData = localStorage.getItem(profileDataKey);
+                
+                // Create fresh default data if none exists
                 if (!profileData) {
-                    // If no data, create default
-                    localStorage.setItem(profileDataKey, JSON.stringify(this.createDefaultDatabase()));
-                    profileData = localStorage.getItem(profileDataKey);
+                    const defaultData = this.createDefaultDatabase();
+                    localStorage.setItem(profileDataKey, JSON.stringify(defaultData));
+                    profileData = JSON.stringify(defaultData);
                 }
                 this.userDatabase = JSON.parse(profileData);
                 this.products = this.userDatabase.products || [];
@@ -1496,25 +1737,16 @@ class SalesTracker {
     // ... Add similar validation for other forms ...
 
     deleteProfile(profileId) {
+        if (this.shopProfile && this.shopProfile.id === profileId) {
+            this.showNotification('You cannot delete the profile you are currently using.', 'error');
+            return;
+        }
         if (!confirm('Are you sure you want to delete this profile? All data will be lost.')) return;
-
         this.profiles = this.profiles.filter(p => p.id !== profileId);
         this.saveAllProfiles();
-
         // Remove profile data
         const profileDataKey = `shopTrackerData_${profileId}`;
         localStorage.removeItem(profileDataKey);
-
-        // If the deleted profile is the current one, switch to another or prompt for setup
-        if (this.shopProfile && this.shopProfile.id === profileId) {
-            if (this.profiles.length > 0) {
-                this.switchToProfile(this.profiles[0].id);
-            } else {
-                localStorage.removeItem('shopTrackerProfile');
-                this.showProfileSetup();
-                return;
-            }
-        }
         this.showNotification('Profile deleted successfully', 'success');
         this.loadProfiles();
     }
@@ -1769,26 +2001,58 @@ class SalesTracker {
     // --- CUSTOM CATEGORIES MANAGEMENT --- //
 
     initializeCustomCategories() {
-        // Force reload data from localStorage for current profile to ensure isolation
-        if (this.shopProfile && this.shopProfile.id) {
-            const profileDataKey = `shopTrackerData_${this.shopProfile.id}`;
-            const profileData = localStorage.getItem(profileDataKey);
-            if (profileData) {
-                const parsedData = JSON.parse(profileData);
-                this.userDatabase = parsedData;
-                
-                // Ensure categories exist for this profile
-                if (!parsedData.customCategories || parsedData.customCategories.length === 0) {
-                    parsedData.customCategories = [
-                        'Electronics', 'Clothing', 'Food & Beverages', 'Books', 'Home & Garden', 'Sports', 'Miscellaneous'
-                    ];
-                    localStorage.setItem(profileDataKey, JSON.stringify(parsedData));
-                    this.userDatabase = parsedData;
+        if (!this.shopProfile || !this.shopProfile.id) return;
+
+        const profileDataKey = `shopTrackerData_${this.shopProfile.id}`;
+        const profileData = localStorage.getItem(profileDataKey);
+        
+        if (profileData) {
+            const parsedData = JSON.parse(profileData);
+            this.userDatabase = parsedData;
+            
+            const shopType = this.shopProfile.shopType;
+            const shopCategories = this.shopTypes[shopType]?.categories || [];
+            
+            // Initialize or update categories based on shop type
+            parsedData.customCategories = parsedData.customCategories || [];
+            
+            // Add any missing shop type categories
+            shopCategories.forEach(category => {
+                if (!parsedData.customCategories.includes(category)) {
+                    parsedData.customCategories.push(category);
                 }
-            }
+            });
+            
+            localStorage.setItem(profileDataKey, JSON.stringify(parsedData));
+            this.userDatabase = parsedData;
         }
         
-        this.loadCustomCategories();
+        this.updateCategories();
+    }
+
+    updateCategories() {
+        const categoriesList = document.getElementById('categoriesList');
+        if (!categoriesList || !this.shopProfile || !this.userDatabase) return;
+        
+        const categories = this.userDatabase.customCategories || [];
+        
+        // Update the categories list
+        categoriesList.innerHTML = '';
+        categories.forEach(category => {
+            const categoryItem = document.createElement('div');
+            categoryItem.className = 'category-item';
+            categoryItem.innerHTML = `
+                <span class="category-name">${category}</span>
+                <div class="category-actions">
+                    <button class="btn-edit" data-category="${category}">Edit</button>
+                    <button class="btn-delete" data-category="${category}">Delete</button>
+                </div>
+            `;
+            categoriesList.appendChild(categoryItem);
+        });
+
+        // Update product category dropdowns
+        this.updateProductSelects();
     }
 
     loadCustomCategories() {
@@ -1801,14 +2065,26 @@ class SalesTracker {
         // Get categories from current profile's database
         const categories = this.userDatabase.customCategories || [];
 
+        if (categories.length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'no-categories';
+            emptyMessage.textContent = 'No custom categories added yet.';
+            container.appendChild(emptyMessage);
+            return;
+        }
+
         categories.forEach(category => {
             const categoryItem = document.createElement('div');
             categoryItem.className = 'category-item';
             categoryItem.innerHTML = `
                 <span class="category-name">${category}</span>
                 <div class="category-actions">
-                    <button class="btn-edit-category" data-category="${category}">Edit</button>
-                    <button class="btn-delete-category" data-category="${category}">Delete</button>
+                    <button class="btn-edit" data-category="${category}" title="Edit category">
+                        <img src="assets/icons/dark-blue/iconsax-edit-2-tp6wwxq2-.svg" alt="Edit">
+                    </button>
+                    <button class="btn-delete" data-category="${category}" title="Delete category">
+                        <img src="assets/icons/dark-blue/iconsax-trash-2-5xpjw8v5-.svg" alt="Delete">
+                    </button>
                 </div>
             `;
             container.appendChild(categoryItem);
@@ -1862,19 +2138,29 @@ class SalesTracker {
             return;
         }
 
+        // Initialize custom categories array if it doesn't exist
         if (!this.userDatabase.customCategories) {
             this.userDatabase.customCategories = [];
         }
 
-        if (this.userDatabase.customCategories.includes(categoryName)) {
+        // Check if category already exists (case-insensitive)
+        if (this.userDatabase.customCategories.some(cat => 
+            cat.toLowerCase() === categoryName.toLowerCase())) {
             this.showNotification('Category already exists.', 'error');
             return;
         }
 
+        // Add the new category
         this.userDatabase.customCategories.push(categoryName);
         this.saveUserDatabase();
         this.loadCustomCategories();
+        
+        // Reset input field
         document.getElementById('newCategoryName').value = '';
+        
+        // Update product category dropdowns
+        this.updateProductCategorySelects();
+        
         this.showNotification('Category added successfully!', 'success');
     }
 
@@ -1882,12 +2168,15 @@ class SalesTracker {
         const button = e.target.closest('button');
         if (!button) return;
 
+        // If user clicked on the img inside the button, get the button's data
         const categoryName = button.dataset.category;
         if (!categoryName) return;
 
-        if (button.classList.contains('btn-edit-category')) {
+        if (button.classList.contains('btn-edit')) {
+            e.preventDefault();
             this.editCustomCategory(categoryName);
-        } else if (button.classList.contains('btn-delete-category')) {
+        } else if (button.classList.contains('btn-delete')) {
+            e.preventDefault();
             this.deleteCustomCategory(categoryName);
         }
     }
@@ -1905,7 +2194,12 @@ class SalesTracker {
         const oldName = document.getElementById('editCategoryOldName').value;
         const newName = document.getElementById('editCategoryName').value.trim();
         
-        if (!newName || newName === oldName) {
+        if (!newName) {
+            this.showNotification('Please enter a category name.', 'error');
+            return;
+        }
+
+        if (newName === oldName) {
             this.closeCategoryEditModal();
             return;
         }
@@ -1924,7 +2218,7 @@ class SalesTracker {
         // Update existing products with this category
         this.products.forEach(product => {
             if (product.category === oldName) {
-                product.category = trimmedName;
+                product.category = newName;
             }
         });
 
@@ -1942,6 +2236,14 @@ class SalesTracker {
     }
 
     deleteCustomCategory(categoryName) {
+        // Check if it's one of the default categories
+        const shopType = this.shopProfile.shopType;
+        const defaultCategories = this.shopTypes[shopType]?.categories || [];
+        if (defaultCategories.includes(categoryName)) {
+            this.showNotification('Cannot delete default shop categories.', 'error');
+            return;
+        }
+
         if (!confirm(`Are you sure you want to delete the "${categoryName}" category? Products in this category will be moved to "Miscellaneous".`)) {
             return;
         }
@@ -1959,6 +2261,10 @@ class SalesTracker {
         this.saveUserDatabase();
         this.loadCustomCategories();
         this.loadProducts();
+        
+        // Update product category dropdowns
+        this.updateProductCategorySelects();
+        
         this.showNotification('Category deleted successfully!', 'success');
     }
 
@@ -2080,6 +2386,292 @@ class SalesTracker {
             }
         });
     }
+
+    // --- CLEAR DATA MODAL LOGIC --- //
+    openClearDataModal() {
+        document.getElementById('clearDataModal').classList.add('active');
+        document.getElementById('appBlocker').classList.add('active');
+    }
+    closeClearDataModal() {
+        document.getElementById('clearDataModal').classList.remove('active');
+        document.getElementById('appBlocker').classList.remove('active');
+    }
+    handleClearDataSubmit(e) {
+        e.preventDefault();
+        const clearProducts = document.getElementById('clearProducts').checked;
+        const clearSales = document.getElementById('clearSales').checked;
+        if (!clearProducts && !clearSales) {
+            this.showNotification('Please select at least one data type to clear.', 'error');
+            return;
+        }
+        if (!this.shopProfile || !this.shopProfile.id) {
+            this.showNotification('No profile loaded.', 'error');
+            this.closeClearDataModal();
+            return;
+        }
+        const profileDataKey = `shopTrackerData_${this.shopProfile.id}`;
+        let data = localStorage.getItem(profileDataKey);
+        if (!data) data = JSON.stringify(this.createDefaultDatabase());
+        let parsed = JSON.parse(data);
+        if (clearProducts) parsed.products = [];
+        if (clearSales) parsed.sales = [];
+        localStorage.setItem(profileDataKey, JSON.stringify(parsed));
+        this.userDatabase = parsed;
+        this.products = parsed.products || [];
+        this.sales = parsed.sales || [];
+        this.updateProductSelects();
+        this.loadProducts();
+        this.loadSalesHistory();
+        this.showNotification('Selected data cleared successfully.', 'success');
+        this.closeClearDataModal();
+    }
+
+    // --- RESET PROFILE TO DEFAULTS --- //
+    resetProfile() {
+        if (!confirm('Are you sure you want to restore all default categories, dashboard settings, and settings?')) return;
+        if (!this.shopProfile || !this.shopProfile.id) {
+            this.showNotification('No profile loaded.', 'error');
+            return;
+        }
+        const profileDataKey = `shopTrackerData_${this.shopProfile.id}`;
+        let data = localStorage.getItem(profileDataKey);
+        if (!data) data = JSON.stringify(this.createDefaultDatabase());
+        let parsed = JSON.parse(data);
+        const defaults = this.createDefaultDatabase();
+        parsed.customCategories = defaults.customCategories;
+        parsed.dashboardConfig = defaults.dashboardConfig;
+        // Optionally reset other settings fields if needed
+        localStorage.setItem(profileDataKey, JSON.stringify(parsed));
+        this.userDatabase = parsed;
+        this.refreshProfileCustomizations();
+        this.showNotification('Profile settings and dashboard restored to default.', 'success');
+    }
+
+    // --- DELETE ALL PROFILES AND START FRESH --- //
+    deleteAllProfiles() {
+        if (!confirm('Are you sure you want to delete ALL profiles and ALL their data? This cannot be undone.')) return;
+        // Remove all profile data
+        const allProfiles = this.getAllProfiles();
+        allProfiles.forEach(profile => {
+            localStorage.removeItem(`shopTrackerData_${profile.id}`);
+        });
+        localStorage.removeItem('shopTrackerProfiles');
+        localStorage.removeItem('shopTrackerProfile');
+        this.profiles = [];
+        this.shopProfile = null;
+        this.userDatabase = this.createDefaultDatabase();
+        this.products = [];
+        this.sales = [];
+        this.showProfileSetup();
+        this.showNotification('All profiles and data deleted. Start fresh by creating a new profile.', 'success');
+    }
+
+    // Add a context variable for avatar cropping
+    avatarCropContext = null; // 'settings', 'setup', 'newProfile'
+
+    // Unified avatar upload handler
+    handleAvatarUploadUnified(e, context) {
+        console.log('Avatar upload triggered for context:', context);
+        const file = e.target.files[0];
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
+        
+        console.log('File selected:', file.name, file.type, file.size);
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            const message = 'Please select a valid image file.';
+            console.error(message);
+            this.showNotification ? this.showNotification(message, 'error') : alert(message);
+            return;
+        }
+        
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            const message = 'Image file is too large. Please select a file under 5MB.';
+            console.error(message);
+            this.showNotification ? this.showNotification(message, 'error') : alert(message);
+            return;
+        }
+        
+        // Set context before processing
+        this.avatarCropContext = context;
+        console.log('Avatar crop context set to:', this.avatarCropContext);
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            console.log('File read successfully, creating image');
+            this.avatarCropData.image = new Image();
+            this.avatarCropData.image.onload = () => {
+                console.log('Image loaded, initializing crop');
+                this.initializeAvatarCrop();
+                this.showAvatarCropModal();
+            };
+            this.avatarCropData.image.onerror = () => {
+                console.error('Failed to load image');
+                const message = 'Failed to load the selected image.';
+                this.showNotification ? this.showNotification(message, 'error') : alert(message);
+            };
+            this.avatarCropData.image.src = event.target.result;
+        };
+        reader.onerror = () => {
+            console.error('Failed to read file');
+            const message = 'Failed to read the selected file.';
+            this.showNotification ? this.showNotification(message, 'error') : alert(message);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Unified saveAvatarCrop method that handles all contexts properly
+    saveAvatarCrop() {
+        if (!this.avatarCropData.image) return;
+
+        // Create a canvas for the final cropped image
+        const finalCanvas = document.createElement('canvas');
+        const finalCtx = finalCanvas.getContext('2d');
+
+        // Set final canvas size (circular avatar)
+        const finalSize = 200;
+        finalCanvas.width = finalSize;
+        finalCanvas.height = finalSize;
+
+        // Create circular clipping path
+        finalCtx.save();
+        finalCtx.beginPath();
+        finalCtx.arc(finalSize / 2, finalSize / 2, finalSize / 2, 0, Math.PI * 2);
+        finalCtx.clip();
+
+        // Calculate crop parameters
+        const mainCanvas = this.avatarCropData.canvas;
+        const img = this.avatarCropData.image;
+        const cropSize = 200;
+        const cropX = (mainCanvas.width - cropSize) / 2;
+        const cropY = (mainCanvas.height - cropSize) / 2;
+
+        const scaledWidth = img.width * this.avatarCropData.scale;
+        const scaledHeight = img.height * this.avatarCropData.scale;
+        const x = (mainCanvas.width - scaledWidth) * (this.avatarCropData.x / 100);
+        const y = (mainCanvas.height - scaledHeight) * (this.avatarCropData.y / 100);
+
+        // Draw the final cropped image
+        const sourceX = Math.max(0, cropX - x);
+        const sourceY = Math.max(0, cropY - y);
+        const sourceWidth = Math.min(scaledWidth - sourceX, cropSize);
+        const sourceHeight = Math.min(scaledHeight - sourceY, cropSize);
+
+        if (sourceWidth > 0 && sourceHeight > 0) {
+            const destX = Math.max(0, x - cropX) * (finalSize / cropSize);
+            const destY = Math.max(0, y - cropY) * (finalSize / cropSize);
+            const destWidth = sourceWidth * (finalSize / cropSize);
+            const destHeight = sourceHeight * (finalSize / cropSize);
+
+            finalCtx.drawImage(
+                img,
+                sourceX / this.avatarCropData.scale, sourceY / this.avatarCropData.scale,
+                sourceWidth / this.avatarCropData.scale, sourceHeight / this.avatarCropData.scale,
+                destX, destY, destWidth, destHeight
+            );
+        }
+
+        finalCtx.restore();
+
+        // Convert to data URL
+        const croppedImageData = finalCanvas.toDataURL('image/png', 0.9);
+
+        // Handle different contexts
+        if (this.avatarCropContext === 'settings') {
+            this.shopProfile.profilePicture = croppedImageData;
+            localStorage.setItem('shopTrackerProfile', JSON.stringify(this.shopProfile));
+            
+            // Update profile in profiles array
+            const profileIndex = this.profiles.findIndex(p => p.id === this.shopProfile.id);
+            if (profileIndex !== -1) {
+                this.profiles[profileIndex] = { ...this.shopProfile };
+                this.saveAllProfiles();
+            }
+            
+            this.updateAvatarUI();
+            this.loadSettings();
+            
+        } else if (this.avatarCropContext === 'setup') {
+            this.setupProfilePicture = croppedImageData;
+            
+            // Update the avatar preview in the setup modal
+            const setupAvatar = document.getElementById('setupAvatarCircle');
+            if (setupAvatar) {
+                const avatarImage = setupAvatar.querySelector('.avatar-image');
+                const avatarPlaceholder = setupAvatar.querySelector('.avatar-placeholder');
+                if (avatarImage && avatarPlaceholder) {
+                    avatarImage.src = croppedImageData;
+                    avatarImage.style.display = 'block';
+                    avatarPlaceholder.style.display = 'none';
+                    setupAvatar.classList.add('has-image');
+                }
+            }
+            
+        } else if (this.avatarCropContext === 'newProfile') {
+            this.newProfilePicture = croppedImageData;
+            
+            // Update the avatar preview in the new profile modal
+            const avatarCircle = document.getElementById('newProfileAvatarCircle');
+            if (avatarCircle) {
+                const avatarImage = avatarCircle.querySelector('.avatar-image');
+                const avatarPlaceholder = avatarCircle.querySelector('.avatar-placeholder');
+                if (avatarImage && avatarPlaceholder) {
+                    avatarImage.src = croppedImageData;
+                    avatarImage.style.display = 'block';
+                    avatarPlaceholder.style.display = 'none';
+                    avatarCircle.classList.add('has-image');
+                }
+            }
+        }
+
+        // Close avatar crop modal and restore previous modal state
+        this.closeAvatarCropAndRestore();
+        
+        // Show success notification
+        this.showNotification && this.showNotification('Avatar updated successfully!', 'success');
+    }
+
+    // Test method for debugging avatar crop modal
+    testAvatarCropModal() {
+        console.log('Testing avatar crop modal elements...');
+        
+        const modal = document.getElementById('avatarCropModal');
+        const canvas = document.getElementById('cropCanvas');
+        const scaleInput = document.getElementById('cropScale');
+        const xInput = document.getElementById('cropX');
+        const yInput = document.getElementById('cropY');
+        const saveBtn = document.getElementById('saveAvatarCrop');
+        const cancelBtn = document.getElementById('cancelAvatarCrop');
+        
+        console.log('Modal elements found:', {
+            modal: !!modal,
+            canvas: !!canvas,
+            scaleInput: !!scaleInput,
+            xInput: !!xInput,
+            yInput: !!yInput,
+            saveBtn: !!saveBtn,
+            cancelBtn: !!cancelBtn
+        });
+        
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            console.log('Canvas context:', !!ctx);
+            console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+        }
+        
+        return {
+            modal: !!modal,
+            canvas: !!canvas,
+            allInputs: !!(scaleInput && xInput && yInput),
+            allButtons: !!(saveBtn && cancelBtn)
+        };
+    }
+
+    // Remove old handleSetupProfilePicture and handleNewProfilePicture methods
 }
 
 // Initialize the application
@@ -2089,8 +2681,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- AVATAR CROPPING SYSTEM --- //
 
 SalesTracker.prototype.openAvatarCrop = function () {
-    // Trigger file input for avatar upload
-    document.getElementById('settingsProfilePicture').click();
+    // Trigger file input for avatar upload (settings context)
+    this.openAvatarCropForContext('settings');
+};
+
+SalesTracker.prototype.openAvatarCropForContext = function (context) {
+    // Set the context first
+    this.avatarCropContext = context;
+    
+    // Trigger the appropriate file input based on context
+    if (context === 'settings') {
+        document.getElementById('settingsProfilePicture').click();
+    } else if (context === 'setup') {
+        document.getElementById('profilePictureSetup').click();
+    } else if (context === 'newProfile') {
+        document.getElementById('newProfilePicture').click();
+    }
 };
 
 SalesTracker.prototype.handleAvatarUpload = function (e) {
@@ -2122,24 +2728,50 @@ SalesTracker.prototype.handleAvatarUpload = function (e) {
 };
 
 SalesTracker.prototype.initializeAvatarCrop = function () {
+    console.log('Initializing avatar crop');
+    
     // Get canvas elements
     this.avatarCropData.canvas = document.getElementById('cropCanvas');
-    this.avatarCropData.previewCanvas = document.getElementById('previewCanvas');
+    if (!this.avatarCropData.canvas) {
+        console.error('Crop canvas not found!');
+        return;
+    }
+    
+    console.log('Canvas found:', this.avatarCropData.canvas);
 
     // Reset crop controls
-    document.getElementById('cropScale').value = 1;
-    document.getElementById('cropX').value = 50;
-    document.getElementById('cropY').value = 50;
+    const scaleInput = document.getElementById('cropScale');
+    const xInput = document.getElementById('cropX');
+    const yInput = document.getElementById('cropY');
+    
+    if (!scaleInput || !xInput || !yInput) {
+        console.error('Crop control inputs not found!', { scaleInput, xInput, yInput });
+        return;
+    }
+    
+    scaleInput.value = 1;
+    xInput.value = 50;
+    yInput.value = 50;
 
     this.avatarCropData.scale = 1;
     this.avatarCropData.x = 50;
     this.avatarCropData.y = 50;
+
+    console.log('Crop data initialized:', this.avatarCropData);
 
     // Initial crop update
     this.updateAvatarCrop();
 };
 
 SalesTracker.prototype.showAvatarCropModal = function () {
+    // Hide any currently active modals based on context
+    if (this.avatarCropContext === 'setup') {
+        document.getElementById('profileSetupModal').classList.remove('active');
+    } else if (this.avatarCropContext === 'newProfile') {
+        document.getElementById('newProfileModal').classList.remove('active');
+    }
+    
+    // Show avatar crop modal
     document.getElementById('avatarCropModal').classList.add('active');
     document.getElementById('appBlocker').classList.add('active');
 };
@@ -2148,32 +2780,95 @@ SalesTracker.prototype.closeAvatarCrop = function () {
     document.getElementById('avatarCropModal').classList.remove('active');
     document.getElementById('appBlocker').classList.remove('active');
 
-    // Reset file input
-    document.getElementById('settingsProfilePicture').value = '';
+    // Reset file inputs
+    const settingsInput = document.getElementById('settingsProfilePicture');
+    const setupInput = document.getElementById('profilePictureSetup');
+    const newProfileInput = document.getElementById('newProfilePicture');
+    
+    if (settingsInput) settingsInput.value = '';
+    if (setupInput) setupInput.value = '';
+    if (newProfileInput) newProfileInput.value = '';
 
     // Clear crop data
     this.avatarCropData.image = null;
+    this.avatarCropContext = null;
+};
+
+SalesTracker.prototype.closeAvatarCropAndRestore = function () {
+    // Close the avatar crop modal
+    document.getElementById('avatarCropModal').classList.remove('active');
+    
+    // Reset file inputs
+    const settingsInput = document.getElementById('settingsProfilePicture');
+    const setupInput = document.getElementById('profilePictureSetup');
+    const newProfileInput = document.getElementById('newProfilePicture');
+    
+    if (settingsInput) settingsInput.value = '';
+    if (setupInput) setupInput.value = '';
+    if (newProfileInput) newProfileInput.value = '';
+
+    // Clear crop data
+    this.avatarCropData.image = null;
+    
+    // Restore the appropriate modal based on context
+    if (this.avatarCropContext === 'setup') {
+        // Restore profile setup modal
+        setTimeout(() => {
+            document.getElementById('profileSetupModal').classList.add('active');
+            document.getElementById('appBlocker').classList.add('active');
+        }, 100);
+    } else if (this.avatarCropContext === 'newProfile') {
+        // Restore new profile modal
+        setTimeout(() => {
+            document.getElementById('newProfileModal').classList.add('active');
+            document.getElementById('appBlocker').classList.add('active');
+        }, 100);
+    } else {
+        // For settings context, just remove the app blocker
+        document.getElementById('appBlocker').classList.remove('active');
+    }
+    
+    // Clear context
+    this.avatarCropContext = null;
 };
 
 SalesTracker.prototype.updateAvatarCrop = function () {
-    if (!this.avatarCropData.image || !this.avatarCropData.canvas) return;
+    console.log('Updating avatar crop');
+    
+    if (!this.avatarCropData.image || !this.avatarCropData.canvas) {
+        console.error('Missing image or canvas for crop update:', {
+            image: !!this.avatarCropData.image,
+            canvas: !!this.avatarCropData.canvas
+        });
+        return;
+    }
 
     // Get current values
     this.avatarCropData.scale = parseFloat(document.getElementById('cropScale').value);
     this.avatarCropData.x = parseFloat(document.getElementById('cropX').value);
     this.avatarCropData.y = parseFloat(document.getElementById('cropY').value);
 
+    console.log('Crop values:', {
+        scale: this.avatarCropData.scale,
+        x: this.avatarCropData.x,
+        y: this.avatarCropData.y
+    });
+
     // Update main canvas
     this.drawCropPreview();
-
-    // Update preview canvas
-    this.drawAvatarPreview();
 };
 
 SalesTracker.prototype.drawCropPreview = function () {
+    console.log('Drawing crop preview');
+    
     const canvas = this.avatarCropData.canvas;
     const ctx = canvas.getContext('2d');
     const img = this.avatarCropData.image;
+
+    if (!ctx) {
+        console.error('Could not get canvas context');
+        return;
+    }
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2186,137 +2881,20 @@ SalesTracker.prototype.drawCropPreview = function () {
     const x = (canvas.width - scaledWidth) * (this.avatarCropData.x / 100);
     const y = (canvas.height - scaledHeight) * (this.avatarCropData.y / 100);
 
+    console.log('Drawing image with params:', {
+        canvasSize: { width: canvas.width, height: canvas.height },
+        imageSize: { width: img.width, height: img.height },
+        scaledSize: { width: scaledWidth, height: scaledHeight },
+        position: { x, y }
+    });
+
     // Draw image
     ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+    
+    console.log('Image drawn successfully');
 };
 
-SalesTracker.prototype.drawAvatarPreview = function () {
-    const canvas = this.avatarCropData.previewCanvas;
-    const ctx = canvas.getContext('2d');
-    const img = this.avatarCropData.image;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Create circular clipping path
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, 0, Math.PI * 2);
-    ctx.clip();
-
-    // Calculate crop area from main canvas
-    const mainCanvas = this.avatarCropData.canvas;
-    const cropSize = 200; // Size of crop circle
-    const cropX = (mainCanvas.width - cropSize) / 2;
-    const cropY = (mainCanvas.height - cropSize) / 2;
-
-    // Calculate scaled dimensions for preview
-    const scaledWidth = img.width * this.avatarCropData.scale;
-    const scaledHeight = img.height * this.avatarCropData.scale;
-
-    // Calculate position
-    const x = (mainCanvas.width - scaledWidth) * (this.avatarCropData.x / 100);
-    const y = (mainCanvas.height - scaledHeight) * (this.avatarCropData.y / 100);
-
-    // Calculate the portion of the image that's in the crop circle
-    const sourceX = Math.max(0, cropX - x);
-    const sourceY = Math.max(0, cropY - y);
-    const sourceWidth = Math.min(scaledWidth - sourceX, cropSize);
-    const sourceHeight = Math.min(scaledHeight - sourceY, cropSize);
-
-    // Draw the cropped portion
-    if (sourceWidth > 0 && sourceHeight > 0) {
-        const destX = Math.max(0, x - cropX) * (canvas.width / cropSize);
-        const destY = Math.max(0, y - cropY) * (canvas.height / cropSize);
-        const destWidth = sourceWidth * (canvas.width / cropSize);
-        const destHeight = sourceHeight * (canvas.height / cropSize);
-
-        ctx.drawImage(
-            img,
-            sourceX / this.avatarCropData.scale, sourceY / this.avatarCropData.scale,
-            sourceWidth / this.avatarCropData.scale, sourceHeight / this.avatarCropData.scale,
-            destX, destY, destWidth, destHeight
-        );
-    }
-
-    ctx.restore();
-};
-
-SalesTracker.prototype.saveAvatarCrop = function () {
-    if (!this.avatarCropData.image) return;
-
-    // Create a canvas for the final cropped image
-    const finalCanvas = document.createElement('canvas');
-    const finalCtx = finalCanvas.getContext('2d');
-
-    // Set final canvas size (circular avatar)
-    const finalSize = 200;
-    finalCanvas.width = finalSize;
-    finalCanvas.height = finalSize;
-
-    // Create circular clipping path
-    finalCtx.save();
-    finalCtx.beginPath();
-    finalCtx.arc(finalSize / 2, finalSize / 2, finalSize / 2, 0, Math.PI * 2);
-    finalCtx.clip();
-
-    // Calculate crop parameters
-    const mainCanvas = this.avatarCropData.canvas;
-    const img = this.avatarCropData.image;
-    const cropSize = 200;
-    const cropX = (mainCanvas.width - cropSize) / 2;
-    const cropY = (mainCanvas.height - cropSize) / 2;
-
-    const scaledWidth = img.width * this.avatarCropData.scale;
-    const scaledHeight = img.height * this.avatarCropData.scale;
-    const x = (mainCanvas.width - scaledWidth) * (this.avatarCropData.x / 100);
-    const y = (mainCanvas.height - scaledHeight) * (this.avatarCropData.y / 100);
-
-    // Draw the final cropped image
-    const sourceX = Math.max(0, cropX - x);
-    const sourceY = Math.max(0, cropY - y);
-    const sourceWidth = Math.min(scaledWidth - sourceX, cropSize);
-    const sourceHeight = Math.min(scaledHeight - sourceY, cropSize);
-
-    if (sourceWidth > 0 && sourceHeight > 0) {
-        const destX = Math.max(0, x - cropX) * (finalSize / cropSize);
-        const destY = Math.max(0, y - cropY) * (finalSize / cropSize);
-        const destWidth = sourceWidth * (finalSize / cropSize);
-        const destHeight = sourceHeight * (finalSize / cropSize);
-
-        finalCtx.drawImage(
-            img,
-            sourceX / this.avatarCropData.scale, sourceY / this.avatarCropData.scale,
-            sourceWidth / this.avatarCropData.scale, sourceHeight / this.avatarCropData.scale,
-            destX, destY, destWidth, destHeight
-        );
-    }
-
-    finalCtx.restore();
-
-    // Convert to data URL and save
-    const croppedImageData = finalCanvas.toDataURL('image/png', 0.9);
-
-    // Update profile with cropped image
-    this.shopProfile.profilePicture = croppedImageData;
-    localStorage.setItem('shopTrackerProfile', JSON.stringify(this.shopProfile));
-
-    // Update profile in profiles array
-    const profileIndex = this.profiles.findIndex(p => p.id === this.shopProfile.id);
-    if (profileIndex !== -1) {
-        this.profiles[profileIndex] = { ...this.shopProfile };
-        this.saveAllProfiles();
-    }
-
-    // Update UI
-    this.updateAvatarUI();
-    this.loadSettings(); // Refresh settings if open
-
-    // Close modal
-    this.closeAvatarCrop();
-
-    this.showNotification('Avatar updated successfully!', 'success');
-};
 
 SalesTracker.prototype.updateAvatarUI = function () {
     // Update sidebar avatar
@@ -2360,79 +2938,3 @@ SalesTracker.prototype.initializeAvatar = function () {
         this.updateAvatarUI();
     }
 };
-// Handle profile picture upload during initial profile setup
-SalesTracker.prototype.handleSetupProfilePicture = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-        alert('Please select a valid image file.');
-        return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        alert('Image file is too large. Please select a file under 5MB.');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        // Store the image temporarily
-        this.setupProfilePicture = event.target.result;
-
-        // Update the avatar preview in the setup modal
-        const setupAvatar = document.getElementById('setupAvatarCircle');
-        if (setupAvatar) {
-            const avatarImage = setupAvatar.querySelector('.avatar-image');
-            const avatarPlaceholder = setupAvatar.querySelector('.avatar-placeholder');
-
-            if (avatarImage && avatarPlaceholder) {
-                avatarImage.src = event.target.result;
-                avatarImage.style.display = 'block';
-                avatarPlaceholder.style.display = 'none';
-                setupAvatar.classList.add('has-image');
-            }
-        }
-    };
-    reader.readAsDataURL(file);
-}
-// Handle profile picture upload for new profile creation
-SalesTracker.prototype.handleNewProfilePicture = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-        alert('Please select a valid image file.');
-        return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        alert('Image file is too large. Please select a file under 5MB.');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        // Store the image temporarily
-        this.newProfilePicture = event.target.result;
-
-        // Update the avatar preview in the new profile modal
-        const avatarCircle = document.getElementById('newProfileAvatarCircle');
-        if (avatarCircle) {
-            const avatarImage = avatarCircle.querySelector('.avatar-image');
-            const avatarPlaceholder = avatarCircle.querySelector('.avatar-placeholder');
-
-            if (avatarImage && avatarPlaceholder) {
-                avatarImage.src = event.target.result;
-                avatarImage.style.display = 'block';
-                avatarPlaceholder.style.display = 'none';
-                avatarCircle.classList.add('has-image');
-            }
-        }
-    };
-    reader.readAsDataURL(file);
-}
