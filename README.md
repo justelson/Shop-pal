@@ -5,12 +5,26 @@ Shop-pal is a modern, browser-based sales and inventory management system design
 ## Features
 
 - **Dashboard Overview**: Visualize sales, revenue, profit, and product stats with interactive charts.
+<img width="1919" height="1079" alt="Screenshot 2025-07-31 172429" src="https://github.com/user-attachments/assets/3a7e4309-cb58-47c8-9efa-6ce334e17150" />
+
 - **Sales Management**: Record new sales, view sales history, and edit or delete sales entries.
+- <img width="1919" height="1072" alt="image" src="https://github.com/user-attachments/assets/e94a6b31-4a60-48e6-8d8e-b4f48e2be1c3" />
+
 - **Product Catalog**: Add, edit, and manage products with categories, stock levels, and low-stock alerts.
+- <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/26fc5d1f-ceba-4fb9-95b2-5a78de0beb0a" />
+
 - **Reports**: Generate daily, weekly, and product performance reports. Export data as JSON or Excel.
+- <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/eb5f0258-4484-4a61-9241-6afd27b37dd9" />
+
 - **Profiles**: Support for multiple shop profiles, each with its own data and settings.
+- <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/01ae1694-dd3d-466a-b044-a554d94c3191" />
+
 - **Settings**: Customize shop name, owner, currency, profile picture, and high performance limits.
+- <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3edc1515-123d-4590-9959-c2de02630680" />
+
 - **Custom Categories**: Add, edit, or delete product categories for better organization.
+- <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/911eded7-1009-4871-b1c6-d142d3323f1c" />
+
 - **Dashboard Customization**: Choose which statistics and cards to display on your dashboard.
 - **Avatar Cropping**: Upload and crop profile avatars with a built-in cropping tool.
 - **Multi-Currency Support**: Choose from a wide range of world currencies for your shop.
